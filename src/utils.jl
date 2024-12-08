@@ -1,6 +1,8 @@
 module Utils
 
-export read_input, parse_input, parse_example, parse_ints, toint, splitlines, stripspaces, getgrid, find
+export Point, read_input, parse_input, parse_example, parse_ints, toint, splitlines, stripspaces, getgrid, find
+
+const Point = Tuple{Int, Int}
 
 function read_input(file::AbstractString)
     paths = ["data/" "../data/"]
