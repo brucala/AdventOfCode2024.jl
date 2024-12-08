@@ -62,42 +62,15 @@ posdir(m::Maze) = (pos(m), dir(m))
 turn!(m::Maze) = (m.guard_dir = turn(m.guard_dir))
 move!(m::Maze, p::Point) = (m.guard_pos = p)
 
-#Base.in(p::Point, m::Maze) = p[1] <= 0 || p[1] > m.size[1] || p[2] <= 0 || p[2] > m.size[2] || p in m.obstacles
-#Base.in(p::Point, m::Maze) =  1 <= p[1] <= m.size[1] && 1 <= p[2] <= m.size[2]
-Base.in(p::Point, m::Maze) =  all((1,1) .< p .<= m.size)
+Base.in(p::Point, m::Maze) =  all((1,1) .<= p .<= m.size)
 
 isobstacle(m::Maze, p::Point) = p in m.obstacles || p == m.extra_obstacle
 
 const D = Dict(N => (-1,0), E => (0,1), S => (1,0), W => (0,-1))
 step(p::Point, d::Dir) = p .+ D[d]
-#=
-function step!(m::Maze)
-    p = step(pos(m), dir(m))
-    p in m || return false
-    if isobstacle(m, p)
-        turn!(m)
-        return true
-    end
-    move!(m, p)
-    return true
-end
-function step!(m::Maze)
-    p = step(pos(m), dir(m))
-    p in m || return false
-    while !isobstacle(m, p)
-        move!(m, p)
-        p = step(pos(m), dir(m))
-        p in m || return false
-    end
-    turn!(m)
-    return true
-end
-=#
 
+# this is very ugly :(
 function step!(m::Maze)
-    #@show posdir(m)
-    #@show m.vobstacles
-    #@show m.hobstacles
     if dir(m) in (E, W)
         d = m.hobstacles
         k, v = pos(m)
@@ -114,8 +87,6 @@ function step!(m::Maze)
             else
                 obs = filter(>(v), d[k])
                 m.extra_obstacle[1] == k && m.extra_obstacle[2] > v && push!(obs, m.extra_obstacle[2])
-                #@show d
-                #@show k,v, d[k], obs
                 if !isempty(obs)
                     p = (k, minimum(obs) - 1)
                     move!(m, p)
@@ -159,7 +130,7 @@ end
 
 between_positions(p1, p2) = ((i,j) for i in range(minmax(p1[1],p2[1])...), j in range(minmax(p1[2],p2[2])...))
 
-function positions(x)
+function solve1(x)
     m = Maze(x)  # copy
     p = pos(m)
     positions = Set()
@@ -174,10 +145,8 @@ function positions(x)
     for pp in between_positions(p, p2)
         push!(positions, pp)
     end
-    return positions
+    return length(positions)
 end
-
-solve1(x) = length(positions(x))
 
 ###
 ### Part 2
@@ -185,27 +154,34 @@ solve1(x) = length(positions(x))
 
 Maze(m::Maze, extra::Point) = Maze(m.size, m.obstacles, m.hobstacles, m.vobstacles, m.guard_pos, m.guard_dir, extra)
 
-function solve2(x)
-
-    pp = positions(x)
-
-    n = 0
-    for (i,j) in pp
-
-        (i, j) == x.guard_pos && continue
-
-        (isobstacle(x, (i,j)) || (i,j) == pos(x)) && continue
-        m = Maze(x, (i,j))
-        visited = Set{Tuple{Point, Dir}}([posdir(m)])
-        while step!(m)
-            if posdir(m) in visited
-                n += 1
-                break
-            end
-            push!(visited, posdir(m))
-        end
+function isloop(m::Maze, visited)
+    while step!(m)
+        posdir(m) in visited && return true
+        push!(visited, posdir(m))
     end
-    return n
+    return false
+end
+
+function solve2(x)
+    m = Maze(x)
+    n = 0
+    checked = Set{Point}()
+    visited = Set{Tuple{Point, Dir}}()
+    while true
+        p = step(pos(m), dir(m))
+        p in m || return n
+        if isobstacle(m, p)
+            turn!(m)
+            push!(visited, posdir(m))
+            continue
+        end
+
+        if p ∉ checked
+            n += isloop(Maze(m, p), copy(visited))
+            push!(checked, p)
+        end
+        move!(m, p)
+    end
 end
 
 end  # module
