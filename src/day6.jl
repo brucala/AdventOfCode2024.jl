@@ -15,8 +15,6 @@ export solve1, solve2, parse_input
 dir(d::Char) = Dict('^' => N, '>' => E, 'v' => S, '<' => W)[d]
 turn(d::Dir) = Dir(mod(Int(d) + 1, 4))
 
-Point = Tuple{Int, Int}
-
 mutable struct Maze
     size::Point
     obstacles::Set{Point}
@@ -24,9 +22,11 @@ mutable struct Maze
     vobstacles::Dict{Int, Vector{Int}}
     guard_pos::Point
     guard_dir::Dir
+    extra_obstacle::Point
 end
 
-Maze(m::Maze) = Maze(m.size, copy(m.obstacles), deepcopy(m.hobstacles), deepcopy(m.vobstacles), m.guard_pos, m.guard_dir)
+Maze(m::Maze) = Maze(m.size, m.obstacles, m.hobstacles, m.vobstacles, m.guard_pos, m.guard_dir, m.extra_obstacle)
+
 function Maze(lines)
     size = length(lines), length(lines[1])
     obstacles = Set{Point}()
@@ -47,7 +47,7 @@ function Maze(lines)
             end
         end
     end
-    return Maze(size, obstacles, hobstacles, vobstacles, guard_pos, guard_dir)
+    return Maze(size, obstacles, hobstacles, vobstacles, guard_pos, guard_dir, (-1,-1))
 end
 
 parse_input(x::AbstractString) = return Maze(splitlines(x))
@@ -63,8 +63,10 @@ turn!(m::Maze) = (m.guard_dir = turn(m.guard_dir))
 move!(m::Maze, p::Point) = (m.guard_pos = p)
 
 #Base.in(p::Point, m::Maze) = p[1] <= 0 || p[1] > m.size[1] || p[2] <= 0 || p[2] > m.size[2] || p in m.obstacles
-Base.in(p::Point, m::Maze) =  1 <= p[1] <= m.size[1] && 1 <= p[2] <= m.size[2]
-isobstacle(m::Maze, p::Point) = p in m.obstacles
+#Base.in(p::Point, m::Maze) =  1 <= p[1] <= m.size[1] && 1 <= p[2] <= m.size[2]
+Base.in(p::Point, m::Maze) =  all((1,1) .< p .<= m.size)
+
+isobstacle(m::Maze, p::Point) = p in m.obstacles || p == m.extra_obstacle
 
 const D = Dict(N => (-1,0), E => (0,1), S => (1,0), W => (0,-1))
 step(p::Point, d::Dir) = p .+ D[d]
@@ -102,6 +104,7 @@ function step!(m::Maze)
         if haskey(d, k)
             if dir(m) == W
                 obs = filter(<(v), d[k])
+                m.extra_obstacle[1] == k && m.extra_obstacle[2] < v && push!(obs, m.extra_obstacle[2])
                 if !isempty(obs)
                     p = (k, maximum(obs) + 1)
                     move!(m, p)
@@ -110,6 +113,7 @@ function step!(m::Maze)
                 end
             else
                 obs = filter(>(v), d[k])
+                m.extra_obstacle[1] == k && m.extra_obstacle[2] > v && push!(obs, m.extra_obstacle[2])
                 #@show d
                 #@show k,v, d[k], obs
                 if !isempty(obs)
@@ -129,6 +133,7 @@ function step!(m::Maze)
         if haskey(d, k)
             if dir(m) == N
                 obs = filter(<(v), d[k])
+                m.extra_obstacle[2] == k && m.extra_obstacle[1] < v && push!(obs, m.extra_obstacle[1])
                 if !isempty(obs)
                     p = (maximum(obs) + 1, k)
                     move!(m, p)
@@ -137,6 +142,7 @@ function step!(m::Maze)
                 end
             else
                 obs = filter(>(v), d[k])
+                m.extra_obstacle[2] == k && m.extra_obstacle[1] > v && push!(obs, m.extra_obstacle[1])
                 if !isempty(obs)
                     p = (minimum(obs) - 1, k)
                     move!(m, p)
@@ -159,14 +165,12 @@ function positions(x)
     positions = Set()
     while step!(m)
         p2 = pos(m)
-        #@show p, p2, dir(m)
         for pp in between_positions(p, p2)
             push!(positions, pp)
         end
         p = p2
     end
     p2 = pos(m)
-    #@show p, p2, dir(m)
     for pp in between_positions(p, p2)
         push!(positions, pp)
     end
@@ -179,22 +183,16 @@ solve1(x) = length(positions(x))
 ### Part 2
 ###
 
-function Maze(m::Maze, p::Point)
-    m2 = Maze(m)
-    push!(m2.obstacles, p)
-    push!(get!(m2.hobstacles, p[1], []), p[2])
-    push!(get!(m2.vobstacles, p[2], []), p[1])
-    return m2
-end
+Maze(m::Maze, extra::Point) = Maze(m.size, m.obstacles, m.hobstacles, m.vobstacles, m.guard_pos, m.guard_dir, extra)
 
 function solve2(x)
 
     pp = positions(x)
 
     n = 0
-    for i in 1:x.size[1], j in 1:x.size[2]
+    for (i,j) in pp
 
-        (i, j) in pp || continue
+        (i, j) == x.guard_pos && continue
 
         (isobstacle(x, (i,j)) || (i,j) == pos(x)) && continue
         m = Maze(x, (i,j))
