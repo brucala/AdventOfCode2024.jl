@@ -68,6 +68,7 @@ function solve2(x)
     while !isempty(pq)
         k, v = dequeue_pair!(pq)
         pos, dir, path = k
+        push!(seen, (pos,dir))
 
         #@show pos, dir, v
         #@show pq
@@ -78,20 +79,17 @@ function solve2(x)
             continue
         end
 
-        p = pos .+ D[dir]
-        ppath = [path; pos]
-        kk = (p, dir, ppath)
-        if x[p...] != '#' && (p,dir) ∉ seen && p ∉ path
-            add!(pq, kk, v+1)
+        ppath = Point[]
+        for (i,d) in enumerate((dir, turn(dir), antiturn(dir)))
+            p = pos .+ D[d]
+            if x[p...] != '#' && (p,dir) ∉ seen && p ∉ path
+                if isempty(ppath)
+                    ppath = [path; pos]
+                end
+                kk = (p, d, ppath)
+                add!(pq, kk, v + (i==1 ? 1 : 1001))
+            end
         end
-
-        kk = (pos, turn(dir), ppath)
-        (p,turn(dir)) ∉ seen && add!(pq, kk, v + 1000)
-
-        kk = (pos, antiturn(dir), ppath)
-        (p,antiturn(dir)) ∉ seen && add!(pq, kk, v + 1000)
-
-        push!(seen, (pos,dir))
     end
     return length(tiles) + 1
 end
