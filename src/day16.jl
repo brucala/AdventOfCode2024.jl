@@ -38,20 +38,15 @@ function solve1(x)
         k, v = dequeue_pair!(pq)
         pos, dir = k
         pos == end_tile && return v
-
-        p = pos .+ D[dir]
-        kk = (p, dir)
-        if x[p...] != '#' && kk ∉ seen
-            add!(pq, kk, v+1)
-        end
-
-        kk = (pos, turn(dir))
-        kk ∉ seen && add!(pq, kk, v + 1000)
-
-        kk = (pos, antiturn(dir))
-        kk ∉ seen && add!(pq, kk, v + 1000)
-
         push!(seen, k)
+
+        for (i,d) in enumerate((dir, turn(dir), antiturn(dir)))
+            p = pos .+ D[d]
+            kk = (p, d)
+            if x[p...] != '#' && kk ∉ seen
+                add!(pq, kk, v+(i==1 ? 1 : 1001))
+            end
+        end
     end
 end
 
@@ -59,35 +54,52 @@ end
 ### Part 2
 ###
 
+function add!(pq::PriorityQueue, pos, dir, score, path)
+    k = (pos, dir)
+    if haskey(pq, k)
+        score2 = pq[k][1]
+        if score2 > score
+            pq[k] = (score, path)
+        elseif score2 == score
+            union!(pq[k][2], path)
+        end
+    else
+        enqueue!(pq, k => (score, path))
+    end
+end
+
+
 function solve2(x)
     end_tile = findfirst(==('E'), x).I
     seen = Set{Tuple{Point, Dir}}()
-    pq = PriorityQueue((findfirst(==('S'), x).I, E, Point[]) => 0)
+    pq = PriorityQueue(
+        Base.Order.By(first),
+        (findfirst(==('S'), x).I, E) => (0, Set{Point}())
+    )
     best = typemax(Int)
     tiles = Set{Point}()
     while !isempty(pq)
         k, v = dequeue_pair!(pq)
-        pos, dir, path = k
-        push!(seen, (pos,dir))
+        pos, dir = k
+        score, path = v
 
-        #@show pos, dir, v
-        #@show pq
-        v > best && break
+        score > best && break
         if pos == end_tile
-            best = v
+            best = score
             union!(tiles, path)
             continue
         end
 
-        ppath = Point[]
-        for (i,d) in enumerate((dir, turn(dir), antiturn(dir)))
+        push!(seen, (pos,dir))
+        newpath = Set{Point}()
+        for (i,d) in enumerate([dir, turn(dir), antiturn(dir)])
             p = pos .+ D[d]
             if x[p...] != '#' && (p,dir) ∉ seen && p ∉ path
-                if isempty(ppath)
-                    ppath = [path; pos]
+                if isempty(newpath)
+                    newpath = copy(path)
+                    push!(newpath, pos)
                 end
-                kk = (p, d, ppath)
-                add!(pq, kk, v + (i==1 ? 1 : 1001))
+                add!(pq, p, d, score + (i==1 ? 1 : 1001), newpath)
             end
         end
     end
