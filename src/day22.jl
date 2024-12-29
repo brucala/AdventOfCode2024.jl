@@ -3,8 +3,6 @@ include("utils.jl")
 using .Utils
 import .Utils: parse_input
 
-using DataStructures: CircularBuffer
-
 export solve1, solve2, parse_input
 
 ###
@@ -38,23 +36,17 @@ end
 ###
 
 function solve2(x)
-    d = Dict{NTuple{4, Int}, Int}()
+    d = Dict{NTuple{4, Int8}, Int16}()
     for n in x
-        s = Set{NTuple{4, Int}}()
-        b = CircularBuffer{Int}(4)
+        s = Set{NTuple{4, Int8}}()
         prev = n % 10
-        for _ in 1:3
+        k = (0,0,0,0)
+        for i in 1:2000
             n = evolve(n)
             current = n % 10
-            push!(b, current - prev)
+            k = (k[2], k[3], k[4], current - prev)
             prev = current
-        end
-        for _ in 4:2000
-            n = evolve(n)
-            current = n % 10
-            push!(b, current - prev)
-            prev = current
-            k = (b[1], b[2], b[3], b[4])
+            i<4 && continue
             k in s && continue
             push!(s, k)
             d[k] = get!(d, k, 0) + current
