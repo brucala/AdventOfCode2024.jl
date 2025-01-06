@@ -44,28 +44,27 @@ end
 largest_element(x) = x[findmax(length, x)[2]]
 
 function bron_kerbosch(r, p, x, g)
-    isempty(p) & isempty(x) && return [r]
+    isempty(p) & isempty(x) && return r
 
     pivot = largest_element(collect(p ∪ x))
 
-    graphs = Set{String}[]
+    largest_graph = Set{String}()
     for v in setdiff(p, g[pivot])
-        append!(
-            graphs,
-            bron_kerbosch(r ∪ Set([v]), p ∩ g[v], x ∩ g[v], g)
-        )
+        pp = p ∩ g[v]
+        if length(largest_graph) < length(pp) + length(r) + 1
+            graph = bron_kerbosch(r ∪ Set([v]), pp, x ∩ g[v], g)
+            length(graph) > length(largest_graph) && (largest_graph = graph)
+        end
         pop!(p, v)
         push!(x, v)
     end
 
-    return graphs
+    return largest_graph
 end
 
-function largest_connection(g)
-    graphs = bron_kerbosch(Set{String}(), Set(keys(g)), Set{String}(), g)
-    return largest_element(graphs)
+function solve2(x)
+    g = bron_kerbosch(Set{String}(), Set(keys(x)), Set{String}(), x)
+    return join(sort(collect(g)), ',')
 end
-
-solve2(x) = join(sort(collect(largest_connection(x))), ',')
 
 end  # module
