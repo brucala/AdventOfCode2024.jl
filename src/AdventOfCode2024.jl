@@ -1,6 +1,6 @@
 module AdventOfCode2024
 
-solved_days = [1:20; 22:23]
+solved_days = 1:24
 
 for day = solved_days
     include("day$day.jl")
